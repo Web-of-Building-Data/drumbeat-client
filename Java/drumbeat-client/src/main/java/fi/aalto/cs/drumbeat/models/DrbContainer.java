@@ -12,23 +12,28 @@ import com.hp.hpl.jena.rdf.model.NodeIterator;
 import com.hp.hpl.jena.rdf.model.ResIterator;
 
 import fi.aalto.cs.drumbeat.common.DrbOntology.LBDHO;
-import fi.aalto.cs.drumbeat.controllers.DrbApplication;
+import fi.aalto.cs.drumbeat.common.DrbApplication;
 
 public class DrbContainer implements Comparable<DrbContainer> {
 	
 	private final DrbContainerType type;
 	private final String uri;
 	private final String id;
-	private String name;
+	private final DrbContainer parent;
 	
+	private String name;	
 	private Model data;
-	private DrbContainer parent;
 
-	public DrbContainer(DrbContainerType type, String uri) {
+	public DrbContainer(DrbContainerType type, String uri, DrbContainer parent) {
 		this.type = type;
 		this.uri = uri;
+		this.parent = parent;
 		id =  uri.substring(uri.lastIndexOf('/') + 1);
 		
+	}
+	
+	public boolean isServer() {
+		return parent == null;
 	}
 	
 	public String getUri() {
@@ -73,10 +78,6 @@ public class DrbContainer implements Comparable<DrbContainer> {
 		return parent;
 	}
 	
-	public void setParent(DrbContainer parent) {
-		this.parent = parent;
-	}
-	
 	public String getBaseUri() {
 		if (parent != null) {
 			return parent.getBaseUri();
@@ -119,11 +120,15 @@ public class DrbContainer implements Comparable<DrbContainer> {
 		List<DrbContainer> parentList = getParentList();
 		if (parentList != null) {
 			for (DrbContainer parent : getParentList()) {
-				target = target.path(parent.getId());
+				if (!parent.isServer()) {
+					target = target.path(parent.getId());
+				}
 			}
 		}
 		
-		target = target.path(this.getId());
+		if (!this.isServer()) {
+			target = target.path(this.getId());
+		}
 		
 		System.out.println("Getting children from: " + target.getUri());
 		
@@ -140,8 +145,7 @@ public class DrbContainer implements Comparable<DrbContainer> {
 		
 		while (resIterator.hasNext()) {
 			final String childUri = resIterator.next().getURI();			
-			final DrbContainer child = new DrbContainer(childContainerType, childUri);
-			child.setParent(this);
+			final DrbContainer child = new DrbContainer(childContainerType, childUri, this);
 			children.add(child);
 		}			
 		
