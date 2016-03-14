@@ -5,7 +5,7 @@ import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.Property;
 import com.hp.hpl.jena.rdf.model.Resource;
 
-public class DrumbeatOntology {
+public class DrbOntology {
 	
 	public static final Model DEFAULT_MODEL = ModelFactory.createDefaultModel();
 

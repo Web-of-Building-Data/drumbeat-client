@@ -9,7 +9,7 @@ import com.vaadin.data.Item;
 import com.vaadin.ui.Table;
 
 @SuppressWarnings("serial")
-public class GraphTable extends Table {
+public class RdfTableView extends Table {
 	
 	@SuppressWarnings("unchecked")
 	public void setData(Model model) {

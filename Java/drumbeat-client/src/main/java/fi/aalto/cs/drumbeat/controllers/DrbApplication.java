@@ -10,7 +10,7 @@ import org.apache.jena.riot.RDFDataMgr;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 
-public class DrumbeatApplication {
+public class DrbApplication {
 	
 	public static final String SERVER_URL_ARCHITECT = "http://architect.drb.cs.hut.fi/";
 	public static final String SERVER_URL_STRUCTURAL = "http://structural.drb.cs.hut.fi/";
