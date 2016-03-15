@@ -1,8 +1,9 @@
 package fi.aalto.cs.drumbeat;
 
+import java.rmi.UnexpectedException;
+
 import javax.servlet.annotation.WebServlet;
 
-import com.hp.hpl.jena.sparql.function.library.e;
 import com.vaadin.annotations.Theme;
 import com.vaadin.annotations.VaadinServletConfiguration;
 import com.vaadin.annotations.Widgetset;
@@ -10,20 +11,19 @@ import com.vaadin.server.VaadinRequest;
 import com.vaadin.server.VaadinServlet;
 import com.vaadin.shared.ui.label.ContentMode;
 import com.vaadin.ui.Button;
-import com.vaadin.ui.Component;
+import com.vaadin.ui.Form;
 import com.vaadin.ui.HorizontalSplitPanel;
 import com.vaadin.ui.Label;
-import com.vaadin.ui.PopupView;
+import com.vaadin.ui.Notification;
+import com.vaadin.ui.Notification.Type;
 import com.vaadin.ui.UI;
 import com.vaadin.ui.VerticalLayout;
 
 import fi.aalto.cs.drumbeat.common.DrbApplication;
-import fi.aalto.cs.drumbeat.models.DrbContainer;
-import fi.aalto.cs.drumbeat.models.DrbContainerType;
-import fi.aalto.cs.drumbeat.models.DrbServerContainer;
+import fi.aalto.cs.drumbeat.models.DrbServer;
 import fi.aalto.cs.drumbeat.views.DrbContainerTreeView;
 import fi.aalto.cs.drumbeat.views.RdfTableView;
-import fi.aalto.cs.drumbeat.views.ServerConnectionPopupView;
+import fi.aalto.cs.drumbeat.views.AddServerWindow;
 
 /**
  *
@@ -37,14 +37,14 @@ public class MyUI extends UI {
 	private VerticalLayout leftTreePanel;
 	private VerticalLayout rightPanel;
 	private RdfTableView rightRdfTableView;
+	
+	private AddServerWindow addServerWindow;
 
     @Override
     protected void init(VaadinRequest vaadinRequest) {
         final VerticalLayout mainLayout = new VerticalLayout();
+        addServerWindow = new AddServerWindow();        
         
-        final PopupView popupView = new PopupView(null, new ServerConnectionPopupView(this));
-        mainLayout.addComponent(popupView);
-
         final HorizontalSplitPanel hsplit  = new HorizontalSplitPanel();
         mainLayout.addComponent(hsplit);
         
@@ -52,13 +52,16 @@ public class MyUI extends UI {
         // left panel
         //        
         leftPanel = new VerticalLayout();
+        leftPanel.setSpacing(true);
         
         leftTreePanel = new VerticalLayout();
         leftPanel.addComponent(leftTreePanel);
         
         leftPanel.addComponents(
         		new Button("Connect...", e -> {
-        			popupView.setPopupVisible(true);
+        			if (addServerWindow.getParent() == null) {
+        				addWindow(addServerWindow);
+        			}
         		})
         );        
         
@@ -77,33 +80,40 @@ public class MyUI extends UI {
         mainLayout.setMargin(true);
         mainLayout.setSpacing(true);
         
-        //
-        // connect to servers
-        //
-        for (DrbServerContainer serverContainer : DrbApplication.getServerContainers()) {
-        	connectServer(serverContainer);
-        }
-        
         setContent(mainLayout);
+        
+        DrbApplication.getInstance().init(this);        
     }
     
-    public void connectServer(DrbServerContainer serverContainer) {
-    	
-    	Label lblTitle = new Label(
-    			String.format("<h3><b><a href=\"%s\">%s</a></b></h3>",
-    					serverContainer.getBaseUri(),
-    					serverContainer.getName()),
-    			ContentMode.HTML);
-    	leftTreePanel.addComponent(lblTitle);
-    	
-    	DrbContainerTreeView tree = new DrbContainerTreeView(serverContainer, rightRdfTableView);
-    	leftTreePanel.addComponent(tree);
-    	
-    	
-    }
 
     @WebServlet(urlPatterns = "/*", name = "MyUIServlet", asyncSupported = true)
     @VaadinServletConfiguration(ui = MyUI.class, productionMode = false)
     public static class MyUIServlet extends VaadinServlet {
     }
+    
+    
+
+	public boolean tryAddServer(DrbServer server) {
+		
+		DrbContainerTreeView tree;
+		
+    	try {
+    		tree = new DrbContainerTreeView(server, rightRdfTableView);    	
+    	} catch (Exception e) {
+    		Notification.show("Unexpected exception: " + e.getMessage(), Type.ERROR_MESSAGE);
+    		return false;
+    	}
+    	
+    	Label lblTitle = new Label(
+    			String.format("<h3><b><a href=\"%s\">%s</a></b></h3>",
+    					server.getBaseUri(),
+    					server.getName()),
+    			ContentMode.HTML);
+    	
+    	leftTreePanel.addComponent(lblTitle);    		
+		leftTreePanel.addComponent(tree);
+		
+		return true;
+		
+	}
 }

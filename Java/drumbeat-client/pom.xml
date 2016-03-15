@@ -5,7 +5,7 @@
 	<groupId>fi.aalto.cs.drumbeat</groupId>
 	<artifactId>drumbeat-client</artifactId>
 	<packaging>war</packaging>
-	<version>0.0.2</version>
+	<version>0.0.3</version>
 	<name>drumbeat-client</name>
 
 	<properties>
