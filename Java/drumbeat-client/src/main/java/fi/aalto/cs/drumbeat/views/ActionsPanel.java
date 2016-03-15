@@ -1,5 +1,7 @@
 package fi.aalto.cs.drumbeat.views;
 
+import java.util.List;
+
 import org.vaadin.dialogs.ConfirmDialog;
 
 import com.vaadin.ui.Button;
@@ -62,8 +64,11 @@ public class ActionsPanel extends Panel {
 		
 		if (container.isServer()) {
 			layout.addComponent(disconnectButton);
-		} else if (container.getChildren().isEmpty()) {
-			layout.addComponent(deleteButton);			
+		} else {
+			List<DrbContainer> children = container.getChildren();
+			if (children == null || children.isEmpty()) {				
+				layout.addComponent(deleteButton);
+			}
 		}		
 		
 		if (childType != null) {
