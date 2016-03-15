@@ -1,9 +1,13 @@
 package fi.aalto.cs.drumbeat;
 
-import java.rmi.UnexpectedException;
+import java.util.Map;
+import java.util.TreeMap;
 
+import javax.activity.InvalidActivityException;
 import javax.servlet.annotation.WebServlet;
+import javax.ws.rs.core.Response.Status;
 
+import com.hp.hpl.jena.rdf.model.Model;
 import com.vaadin.annotations.Theme;
 import com.vaadin.annotations.VaadinServletConfiguration;
 import com.vaadin.annotations.Widgetset;
@@ -11,7 +15,6 @@ import com.vaadin.server.VaadinRequest;
 import com.vaadin.server.VaadinServlet;
 import com.vaadin.shared.ui.label.ContentMode;
 import com.vaadin.ui.Button;
-import com.vaadin.ui.Form;
 import com.vaadin.ui.HorizontalSplitPanel;
 import com.vaadin.ui.Label;
 import com.vaadin.ui.Notification;
@@ -20,9 +23,11 @@ import com.vaadin.ui.UI;
 import com.vaadin.ui.VerticalLayout;
 
 import fi.aalto.cs.drumbeat.common.DrbApplication;
+import fi.aalto.cs.drumbeat.models.DrbContainer;
 import fi.aalto.cs.drumbeat.models.DrbServer;
 import fi.aalto.cs.drumbeat.views.DrbContainerTreeView;
 import fi.aalto.cs.drumbeat.views.RdfTableView;
+import fi.aalto.cs.drumbeat.views.ActionsPanel;
 import fi.aalto.cs.drumbeat.views.AddServerWindow;
 
 /**
@@ -35,15 +40,26 @@ public class MyUI extends UI {
 	
 	private VerticalLayout leftPanel;
 	private VerticalLayout leftTreePanel;
+	
 	private VerticalLayout rightPanel;
+	private Label rightContainerTitle;
+	private ActionsPanel rightActionsPanel;
 	private RdfTableView rightRdfTableView;
 	
-	private AddServerWindow addServerWindow;
+	private AddServerWindow dialogAddServerWindow;
+	
+	private DrbContainer selectedContainer;
+	
+	private Map<DrbServer, DrbContainerTreeView> serverTreeViews;
+	
 
     @Override
     protected void init(VaadinRequest vaadinRequest) {
+    	
+    	serverTreeViews = new TreeMap<>();
+    	
         final VerticalLayout mainLayout = new VerticalLayout();
-        addServerWindow = new AddServerWindow();        
+        dialogAddServerWindow = new AddServerWindow();        
         
         final HorizontalSplitPanel hsplit  = new HorizontalSplitPanel();
         mainLayout.addComponent(hsplit);
@@ -59,8 +75,8 @@ public class MyUI extends UI {
         
         leftPanel.addComponents(
         		new Button("Connect...", e -> {
-        			if (addServerWindow.getParent() == null) {
-        				addWindow(addServerWindow);
+        			if (dialogAddServerWindow.getParent() == null) {
+        				addWindow(dialogAddServerWindow);
         			}
         		})
         );        
@@ -69,6 +85,15 @@ public class MyUI extends UI {
         // right panel
         //
         rightPanel = new VerticalLayout();
+        rightPanel.setMargin(true);
+        rightPanel.setSpacing(true);
+        rightPanel.setSizeFull();
+        
+        rightContainerTitle = new Label();
+        rightPanel.addComponent(rightContainerTitle);
+        
+        rightActionsPanel = new ActionsPanel();
+        rightPanel.addComponent(rightActionsPanel);
         
         rightRdfTableView = new RdfTableView();
         rightPanel.addComponent(rightRdfTableView);
@@ -82,7 +107,8 @@ public class MyUI extends UI {
         
         setContent(mainLayout);
         
-        DrbApplication.getInstance().init(this);        
+        DrbApplication.getInstance().init(this);
+        setSelectedContainer(null);
     }
     
 
@@ -92,28 +118,105 @@ public class MyUI extends UI {
     }
     
     
+    public DrbContainer getSelectedContainer() {
+    	return selectedContainer;
+    }
+    
+    
+    public void setSelectedContainer(DrbContainer container) {
+    	
+    	selectedContainer = container;
+    	
+    	if (container != null) {
+    		rightPanel.setVisible(true);
+    		
+    		rightContainerTitle.setValue(String.format("<h1>%s</h1>", container.toString()));
+            rightContainerTitle.setContentMode(ContentMode.HTML);
+            
+			if (!container.isServer()) {
+				Model data = container.getData();
+				rightRdfTableView.setData(data);
+				rightRdfTableView.setVisible(true);
+			} else {
+				rightRdfTableView.setVisible(false);
+			}
+			
+			rightActionsPanel.setActions(container);
+			
+    	} else {
+    		rightPanel.setVisible(false);
+    	}
+    }
+    
+    
+    public synchronized void deleteSelectedContainer() {
+		try {
+			Status status = selectedContainer.delete();
+			
+			if (!status.getFamily().equals(Status.Family.SUCCESSFUL)) {
+				throw new InvalidActivityException(String.format("HTTP response status: %d (%s)", status.getStatusCode(), status));
+			}
+		} catch (Exception ex) {
+			Notification.show(ex.getMessage(), Type.ERROR_MESSAGE);
+			return;
+		}
+		
+		Notification.show(selectedContainer + " deleted");
 
-	public boolean tryAddServer(DrbServer server) {
+		DrbContainerTreeView treeView = getContainerTreeView(selectedContainer);		
+		assert(treeView != null);
+
+		if (selectedContainer.isServer()) {
+			leftTreePanel.removeComponent(treeView);
+		} else {
+	    	try {
+	    		treeView.refresh();
+	    	} catch (Exception e) {
+	    		Notification.show("Unexpected exception: " + e.getMessage(), Type.ERROR_MESSAGE);
+	    	}
+		}
+
+		setSelectedContainer(null);
+    }
+    
+    
+    public DrbContainerTreeView getContainerTreeView(DrbContainer container) {
+    	DrbContainerTreeView treeView = serverTreeViews.get(selectedContainer.getServer());
+		if (treeView == null) {
+			throw new NullPointerException("Tree for " + container + " not found"); 
+		}
+		return treeView;    	
+    }
+    
+    
+    public void refreshServerView(DrbServer server) {
+    	DrbContainerTreeView treeView = serverTreeViews.get(server);
+    	
+    	try {
+    		treeView.refresh();
+    	} catch (Exception e) {
+    		Notification.show("Unexpected exception: " + e.getMessage(), Type.ERROR_MESSAGE);
+    	}
+    }
+    
+    
+
+	public synchronized boolean tryAddServer(DrbServer server) {
 		
 		DrbContainerTreeView tree;
 		
     	try {
-    		tree = new DrbContainerTreeView(server, rightRdfTableView);    	
+    		tree = new DrbContainerTreeView(server);    	
     	} catch (Exception e) {
     		Notification.show("Unexpected exception: " + e.getMessage(), Type.ERROR_MESSAGE);
     		return false;
     	}
     	
-    	Label lblTitle = new Label(
-    			String.format("<h3><b><a href=\"%s\">%s</a></b></h3>",
-    					server.getBaseUri(),
-    					server.getName()),
-    			ContentMode.HTML);
-    	
-    	leftTreePanel.addComponent(lblTitle);    		
 		leftTreePanel.addComponent(tree);
+		serverTreeViews.put(server, tree);
 		
 		return true;
 		
 	}
+
 }

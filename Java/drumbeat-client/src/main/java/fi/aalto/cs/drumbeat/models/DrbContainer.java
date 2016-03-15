@@ -1,12 +1,13 @@
 package fi.aalto.cs.drumbeat.models;
 
-import java.rmi.UnexpectedException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.NodeIterator;
@@ -43,6 +44,14 @@ public class DrbContainer implements Comparable<DrbContainer> {
 	
 	public String getId() {
 		return id;
+	}
+	
+	public DrbContainerType getType() {
+		return type;
+	}
+	
+	public DrbServer getServer() {
+		return parent != null ? parent.getServer() : (DrbServer)this;
 	}
 	
 	public synchronized void loadData() {
@@ -95,7 +104,7 @@ public class DrbContainer implements Comparable<DrbContainer> {
 	
 	@Override
 	public String toString() {
-		return String.format("%s [%s]", getName(), getId()) ;
+		return String.format("%s '%s'", getType().getName(), getName()) ;
 	}	
 	
 	@Override
@@ -111,7 +120,7 @@ public class DrbContainer implements Comparable<DrbContainer> {
 		return parents;
 	}
 	
-	public List<DrbContainer> getChildren() throws UnexpectedException {
+	public List<DrbContainer> getChildren() {
 		
 		DrbContainerType childContainerType = type.getChildContainerType();
 		if (childContainerType == null) {
@@ -137,34 +146,41 @@ public class DrbContainer implements Comparable<DrbContainer> {
 			target = target.path(this.getId());
 		}
 		
-		try {
+		final String response =
+				target
+					.request(DrbApplication.RDF_LANG_DEFAULT.getHeaderString())
+					.get(String.class);
 		
-			final String response =
-					target
-						.request(DrbApplication.RDF_LANG_DEFAULT.getHeaderString())
-						.get(String.class);
-			
-			final Model dataSourcesModel = DrbApplication.parseModel(response);
-			
-			final ResIterator resIterator = dataSourcesModel.listSubjects();
-			
-			final List<DrbContainer> children = new ArrayList<>();
-			
-			while (resIterator.hasNext()) {
-				final String childUri = resIterator.next().getURI();			
-				final DrbContainer child = new DrbContainer(childContainerType, childUri, this);
-				children.add(child);
-			}
-			
-			return children;
-
-		} catch(Exception e) {
-			throw new UnexpectedException("Error getting from: " + target.getUri() + ": " + e.getMessage(), e);
+		final Model dataSourcesModel = DrbApplication.parseModel(response);
+		
+		final ResIterator resIterator = dataSourcesModel.listSubjects();
+		
+		final List<DrbContainer> children = new ArrayList<>();
+		
+		while (resIterator.hasNext()) {
+			final String childUri = resIterator.next().getURI();			
+			final DrbContainer child = new DrbContainer(childContainerType, childUri, this);
+			children.add(child);
 		}
 		
+		return children;
 	}
 	
 	
+	public Status delete() {
+		if (!isServer()) {
+			System.out.println("Deleting container: " + uri);
+			
+			Response response = ClientBuilder
+				.newClient()
+				.target(uri)
+				.request(DrbApplication.RDF_LANG_DEFAULT.getHeaderString())
+				.delete();
+			
+			return Status.fromStatusCode(response.getStatus());
+		}
+		return Status.NO_CONTENT;
+	}
 	
 
 }

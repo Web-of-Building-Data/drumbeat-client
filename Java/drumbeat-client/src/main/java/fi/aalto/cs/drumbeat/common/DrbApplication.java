@@ -11,8 +11,6 @@ import org.apache.jena.riot.RDFDataMgr;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
-import com.vaadin.ui.Notification;
-import com.vaadin.ui.Notification.Type;
 
 import fi.aalto.cs.drumbeat.MyUI;
 import fi.aalto.cs.drumbeat.models.DrbServer;
@@ -36,6 +34,9 @@ public class DrbApplication {
 		serverContainers = new LinkedList<>();
 	}
 	
+	public MyUI getUI() {
+		return ui;
+	}
 	
 	public List<DrbServer> getServers() {
 		return serverContainers;
