@@ -11,9 +11,9 @@ import fi.aalto.cs.drumbeat.common.DrbApplication;
 import fi.aalto.cs.drumbeat.models.DrbServer;
 
 @SuppressWarnings("serial")
-public class AddServerWindow extends Window {
+public class NewServerWindow extends Window {
 	
-	public AddServerWindow() {
+	public NewServerWindow() {
 		super("Connect to new server");
 		setModal(true);
 		setResizable(false);
@@ -40,7 +40,7 @@ public class AddServerWindow extends Window {
 		});
 		
 		
-		Button btnClose = new Button("Close");
+		Button btnClose = new Button("Cancel");
 		btnClose.addClickListener(e -> {
 			close();
 		});

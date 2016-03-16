@@ -1,6 +1,8 @@
 package fi.aalto.cs.drumbeat.views;
 
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 import com.vaadin.data.Item;
 import com.vaadin.data.Property;
@@ -17,13 +19,17 @@ import fi.aalto.cs.drumbeat.models.DrbServer;
 public class DrbContainerTreeView extends VerticalLayout {
 	
 	private final String PROPERTY_RELATED_CONTAINER_OBJECT = "relatedContainer";
-			
-	private final DrbServer server;
 	
-	private Tree tree;
+//	private final DrbServer server;
+	
+	private final Tree tree;
+	
+	private final Map<DrbContainer, Object> itemIds;
 	
 	public DrbContainerTreeView(DrbServer server) {		
-		this.server = server;
+//		this.server = server;
+		
+		itemIds = new TreeMap<>();		
 		
     	Label lblTitle = new Label(
     			String.format("<h3><b><a href=\"%s\">%s</a></b></h3>",
@@ -34,39 +40,61 @@ public class DrbContainerTreeView extends VerticalLayout {
     	
     	tree = new Tree();
 		tree.addContainerProperty(PROPERTY_RELATED_CONTAINER_OBJECT, DrbContainer.class, null);
-		addComponent(tree);
-		
-		refresh();
-	}
-	
-	
-	@SuppressWarnings("unchecked")
-	public void refresh() {
-		tree.removeAllItems();
+		tree.addValueChangeListener(e -> notifyValueChanged());
+		addComponent(tree);		
 		
 		addContainer(null, server);
-		
-		tree.addValueChangeListener(e -> {
-			String selectedItemId = (String) tree.getValue();
-			if (selectedItemId != null) {
-				Property<DrbContainer> property = tree.getContainerProperty(selectedItemId, PROPERTY_RELATED_CONTAINER_OBJECT);
-				DrbContainer selectedContainer = property.getValue();
-				DrbApplication.getInstance().getUI().setSelectedContainer(selectedContainer);
-			}
-		});
 	}
 	
 	
+	public void notifyAddedItem(DrbContainer container) {
+		DrbContainer parent = container.getParent();
+		Object parentItemId = itemIds.remove(parent);
+		Object itemId = addContainer(parentItemId, container);
+		tree.setValue(itemId);
+		notifyValueChanged();
+	}
+	
+
+	public void notifyRemovedItem(DrbContainer container) {
+		tree.setValue(null);
+
+		Object itemId = itemIds.remove(container);
+		
+		if (itemId != null) {
+			Object parentItemId = tree.getParent(itemId);
+			tree.removeItem(itemId);
+			if (parentItemId != null) {
+				tree.setChildrenAllowed(parentItemId, !tree.getChildren(parentItemId).isEmpty());
+				tree.setValue(parentItemId);
+			}
+		}
+		
+		notifyValueChanged();
+	}
+	
+	public void notifyValueChanged() {
+		Object selectedItemId = tree.getValue();
+		if (selectedItemId != null) {
+			@SuppressWarnings("unchecked")
+			Property<DrbContainer> property = tree.getContainerProperty(selectedItemId, PROPERTY_RELATED_CONTAINER_OBJECT);
+			DrbContainer selectedContainer = property.getValue();
+			DrbApplication.getInstance().getUI().setSelectedContainer(selectedContainer);
+		}		
+	}
 	
 	
 	@SuppressWarnings("unchecked")
-	private void addContainer(String parentItemId, DrbContainer container) {
+	private Object addContainer(Object parentItemId, DrbContainer container) {
 		if (parentItemId != null) {
 			tree.setChildrenAllowed(parentItemId, true);
 		}
 
-		String itemId = !container.isServer() ? container.getName() : "<root>";		
-		Item childItem = tree.addItem(itemId);		
+		Object itemId = tree.addItem();
+		itemIds.put(container, itemId);
+		tree.setItemCaption(itemId, !container.isServer() ? container.getName() : "<root>");
+		
+		Item childItem = tree.getItem(itemId);		
 		childItem
 			.getItemProperty(PROPERTY_RELATED_CONTAINER_OBJECT)
 			.setValue(container);
@@ -82,7 +110,9 @@ public class DrbContainerTreeView extends VerticalLayout {
 				addContainer(itemId, child);				
 			}
 		}
+		return itemId;
 	}
+	
 	
 	
 	

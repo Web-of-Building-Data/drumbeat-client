@@ -5,7 +5,10 @@ import java.util.LinkedList;
 import java.util.List;
 
 import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.Form;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
@@ -30,8 +33,7 @@ public class DrbContainer implements Comparable<DrbContainer> {
 		this.type = type;
 		this.uri = uri;
 		this.parent = parent;
-		id =  uri.substring(uri.lastIndexOf('/') + 1);
-		
+		id = parent != null ? uri.substring(uri.lastIndexOf('/') + 1) : "";
 	}
 	
 	public boolean isServer() {
@@ -142,9 +144,7 @@ public class DrbContainer implements Comparable<DrbContainer> {
 			}
 		}
 		
-		if (!this.isServer()) {
-			target = target.path(this.getId());
-		}
+		target = target.path(this.getId());
 		
 		final String response =
 				target
@@ -180,6 +180,53 @@ public class DrbContainer implements Comparable<DrbContainer> {
 			return Status.fromStatusCode(response.getStatus());
 		}
 		return Status.NO_CONTENT;
+	}
+
+	public DrbContainer addChild(String id, String name) {
+		
+		DrbContainerType childContainerType = type.getChildContainerType();
+		if (childContainerType == null) {
+			throw new NullPointerException();
+		}
+
+		WebTarget target = 
+				ClientBuilder
+					.newClient()
+					.target(getBaseUri())
+					.path(childContainerType.getPath());
+		
+		List<DrbContainer> parentList = getParentList();
+		if (parentList != null) {
+			for (DrbContainer parent : getParentList()) {
+				if (!parent.isServer()) {
+					target = target.path(parent.getId());
+				}
+			}
+		}
+		
+		target =
+			target
+				.path(this.getId())
+				.path(id);
+		
+		
+		Form form = new Form();
+		form.param("name", name);		
+		
+		System.out.println("Creating object: " + target.getUri());
+		
+		final Response response =
+				target
+					.request(DrbApplication.RDF_LANG_DEFAULT.getHeaderString())
+					.put(Entity.entity(form, MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
+		
+		if (response.getStatusInfo().getFamily() == Status.Family.SUCCESSFUL) {
+			return new DrbContainer(childContainerType, target.getUri().toString(), this);			
+		} else {
+			throw new RuntimeException(String.format("Error %d (%s): %s", response.getStatus(), response.getStatusInfo(), response.getEntity()));			
+		}		
+		
+		
 	}
 	
 

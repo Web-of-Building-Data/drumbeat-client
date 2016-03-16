@@ -28,7 +28,7 @@ import fi.aalto.cs.drumbeat.models.DrbServer;
 import fi.aalto.cs.drumbeat.views.DrbContainerTreeView;
 import fi.aalto.cs.drumbeat.views.RdfTableView;
 import fi.aalto.cs.drumbeat.views.ActionsPanel;
-import fi.aalto.cs.drumbeat.views.AddServerWindow;
+import fi.aalto.cs.drumbeat.views.NewServerWindow;
 
 /**
  *
@@ -46,7 +46,7 @@ public class MyUI extends UI {
 	private ActionsPanel rightActionsPanel;
 	private RdfTableView rightRdfTableView;
 	
-	private AddServerWindow dialogAddServerWindow;
+	private NewServerWindow dialogAddServerWindow;
 	
 	private DrbContainer selectedContainer;
 	
@@ -59,7 +59,7 @@ public class MyUI extends UI {
     	serverTreeViews = new TreeMap<>();
     	
         final VerticalLayout mainLayout = new VerticalLayout();
-        dialogAddServerWindow = new AddServerWindow();        
+        dialogAddServerWindow = new NewServerWindow();        
         
         final HorizontalSplitPanel hsplit  = new HorizontalSplitPanel();
         mainLayout.addComponent(hsplit);
@@ -130,7 +130,7 @@ public class MyUI extends UI {
     	if (container != null) {
     		rightPanel.setVisible(true);
     		
-    		rightContainerTitle.setValue(String.format("<h1>%s</h1>", container.toString()));
+    		rightContainerTitle.setValue(String.format("<h1>%s</h1>%s", container.toString(), container.getUri()));
             rightContainerTitle.setContentMode(ContentMode.HTML);
             
 			if (!container.isServer()) {
@@ -149,9 +149,9 @@ public class MyUI extends UI {
     }
     
     
-    public synchronized void deleteSelectedContainer() {
+    public synchronized void deleteContainer(DrbContainer container) {
 		try {
-			Status status = selectedContainer.delete();
+			Status status = container.delete();
 			
 			if (!status.getFamily().equals(Status.Family.SUCCESSFUL)) {
 				throw new InvalidActivityException(String.format("HTTP response status: %d (%s)", status.getStatusCode(), status));
@@ -161,22 +161,31 @@ public class MyUI extends UI {
 			return;
 		}
 		
-		Notification.show(selectedContainer + " deleted");
+		Notification.show(container + " deleted");
 
-		DrbContainerTreeView treeView = getContainerTreeView(selectedContainer);		
+		DrbContainerTreeView treeView = getContainerTreeView(container);		
 		assert(treeView != null);
 
-		if (selectedContainer.isServer()) {
+		if (container.isServer()) {
 			leftTreePanel.removeComponent(treeView);
 		} else {
 	    	try {
-	    		treeView.refresh();
+	    		treeView.notifyRemovedItem(container);
 	    	} catch (Exception e) {
 	    		Notification.show("Unexpected exception: " + e.getMessage(), Type.ERROR_MESSAGE);
+	    		e.printStackTrace();
 	    	}
 		}
 
 		setSelectedContainer(null);
+    }
+    
+    
+    public void addChildContainer(DrbContainer parentContainer, String id, String name) {
+    	DrbContainer childContainer = parentContainer.addChild(id, name);
+		DrbContainerTreeView treeView = getContainerTreeView(parentContainer);		
+		assert(treeView != null);
+		treeView.notifyAddedItem(childContainer);
     }
     
     
@@ -189,15 +198,15 @@ public class MyUI extends UI {
     }
     
     
-    public void refreshServerView(DrbServer server) {
-    	DrbContainerTreeView treeView = serverTreeViews.get(server);
-    	
-    	try {
-    		treeView.refresh();
-    	} catch (Exception e) {
-    		Notification.show("Unexpected exception: " + e.getMessage(), Type.ERROR_MESSAGE);
-    	}
-    }
+//    public void refreshServerView(DrbServer server) {
+//    	DrbContainerTreeView treeView = serverTreeViews.get(server);
+//    	
+//    	try {
+//    		treeView.refresh();
+//    	} catch (Exception e) {
+//    		Notification.show("Unexpected exception: " + e.getMessage(), Type.ERROR_MESSAGE);
+//    	}
+//    }
     
     
 
@@ -209,6 +218,7 @@ public class MyUI extends UI {
     		tree = new DrbContainerTreeView(server);    	
     	} catch (Exception e) {
     		Notification.show("Unexpected exception: " + e.getMessage(), Type.ERROR_MESSAGE);
+    		e.printStackTrace();
     		return false;
     	}
     	
