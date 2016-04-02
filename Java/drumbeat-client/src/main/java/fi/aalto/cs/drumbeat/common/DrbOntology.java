@@ -1,9 +1,9 @@
 package fi.aalto.cs.drumbeat.common;
 
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
-import com.hp.hpl.jena.rdf.model.Property;
-import com.hp.hpl.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.rdf.model.Property;
+import org.apache.jena.rdf.model.Resource;
 
 public class DrbOntology {
 	
@@ -11,6 +11,7 @@ public class DrbOntology {
 
 	public static final String GRAPH_NAME_IFC = "owl_ifc_ifc2x3";
 	
+
 //	public static final String COLLECTION_OWL = "owl";
 //	public static final String DATASOURCE_IFC = "ifc";
 //	public static final String DATASET_IFC2X3 = "ifc2x3";

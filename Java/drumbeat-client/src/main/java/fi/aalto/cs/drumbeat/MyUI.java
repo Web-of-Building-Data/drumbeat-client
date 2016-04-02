@@ -7,7 +7,7 @@ import javax.activity.InvalidActivityException;
 import javax.servlet.annotation.WebServlet;
 import javax.ws.rs.core.Response.Status;
 
-import com.hp.hpl.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.Model;
 import com.vaadin.annotations.Theme;
 import com.vaadin.annotations.VaadinServletConfiguration;
 import com.vaadin.annotations.Widgetset;

@@ -1,6 +1,6 @@
 package fi.aalto.cs.drumbeat.models;
 
-import com.hp.hpl.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.Resource;
 
 import fi.aalto.cs.drumbeat.common.DrbOntology.LBDHO;
 
